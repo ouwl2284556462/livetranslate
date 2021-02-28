@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.owl.livetranslate.bean.receiver.BiliMsgPacket;
 import com.owl.livetranslate.bean.receiver.ChannelInfo;
+import com.owl.livetranslate.bean.receiver.DanmuInfo;
 import com.owl.livetranslate.utils.RandomUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
@@ -67,8 +68,9 @@ public class DamuReceiver {
      * 开始监听房间信息
      * @param roomId
      */
-    public void startListenToRoom(int roomId, Consumer<String> logInfo, Consumer<DamuReceiverClient> startSuccessCb) {
+    public void startListenToRoom(int roomId, Consumer<String> logInfo, Consumer<DamuReceiverClient> startSuccessCb, Consumer<DanmuInfo> danmuCb) {
         executorService.execute(() ->{
+            logInfo.accept("获取房间信息中...");
             ChannelInfo cidInfo = getCidInfo(roomId);
             if(null == cidInfo){
                 log.error("获取房间失败，roomid:{}", roomId);
@@ -78,11 +80,13 @@ public class DamuReceiver {
 
             DamuReceiverClient client = null;
             try{
+                logInfo.accept("连接服务器中...");
                 client = new DamuReceiverClient(cidInfo);
-                client.connect();
+                client.connect(danmuCb);
                 log.info("连接成功");
                 logInfo.accept("连接成功");
 
+                logInfo.accept("进入房间中...");
                 client.joinChannel();
                 log.info("进入房间成功");
                 logInfo.accept("进入房间成功");

@@ -5,6 +5,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -20,19 +22,29 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 
+import com.owl.livetranslate.bean.receiver.DanmuInfo;
+import com.owl.livetranslate.network.receiver.DamuReceiver;
 import com.owl.livetranslate.network.sender.DamuSender;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-
+@Slf4j
+@Component
 public class LivetranslateFrame extends JFrame {
 
+    @Autowired
     private DamuSender damuSender;
+
+    @Autowired
+    private DamuReceiver damuReceiver;
 
     // 窗口宽度
     public static final int WIDTH = 400;
     // 窗口高度
-    public static final int HEIGHT = 250;
+    public static final int HEIGHT = 400;
     private JTextArea sendTextArea;
     private boolean hasSettedSetting;
     private String speaker;
@@ -42,15 +54,20 @@ public class LivetranslateFrame extends JFrame {
     private JTextArea logTextArea;
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-    public LivetranslateFrame(ConfigurableApplicationContext applicationContext) {
-        damuSender = applicationContext.getBean(DamuSender.class);
-        System.out.println(damuSender);
+    public LivetranslateFrame() {
+
         // 设置标题
         setTitle("联动直播同传广播工具-(喜欢的关注御剑莉亚)");
         // 设置大小
         setSize(WIDTH, HEIGHT);
         // 关闭窗口
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.exit(0);
+            }
+        });
+
         //置顶
         setAlwaysOnTop(true);
 
@@ -131,6 +148,17 @@ public class LivetranslateFrame extends JFrame {
                 return;
             }
 
+            String[] roomidStrs = roomidTextField.getText().split(",");
+            roomids = new int[roomidStrs.length];
+            for (int i = 0; i < roomidStrs.length; i++) {
+                Integer roomid = changeStrToInt(roomidStrs[i]);
+                if(roomid == null){
+                    showErrMsg("房间号错误");
+                    return;
+                }
+
+                roomids[i] = roomid;
+            }
 
             roomidTextField.setEnabled(false);
             speakerTextField.setEnabled(false);
@@ -142,12 +170,6 @@ public class LivetranslateFrame extends JFrame {
             speaker = speakerTextField.getText();
             cookied = cookiedTextArea.getText();
             csrf = damuSender.getCsrfByCookied(cookied);
-
-            String[] roomidStrs = roomidTextField.getText().split(",");
-            roomids = new int[roomidStrs.length];
-            for (int i = 0; i < roomidStrs.length; i++) {
-                roomids[i] = Integer.parseInt(roomidStrs[i]);
-            }
         });
 
 
@@ -194,21 +216,67 @@ public class LivetranslateFrame extends JFrame {
 
 
         JScrollPane sendScrollPanel = new JScrollPane(sendTextArea);
-        sendScrollPanel.setPreferredSize(new Dimension(150, 50));
+        sendScrollPanel.setPreferredSize(new Dimension(250, 50));
         sendInfoPanel.add(sendScrollPanel);
 
+
+        //读取弹幕
+        JLabel readDanmuRoodIdLaebl = new JLabel("读取弹幕房间号");
+        sendInfoPanel.add(readDanmuRoodIdLaebl);
+        JTextField readDanmuRoodIdField = new JTextField();
+        readDanmuRoodIdField.setPreferredSize(new Dimension(50, 20));
+        sendInfoPanel.add(readDanmuRoodIdField);
+
+        JButton readDanmuStartBtn = new JButton("开始读取");
+        readDanmuStartBtn.addActionListener( e -> {
+            if (!StringUtils.hasText(readDanmuRoodIdField.getText())) {
+                showErrMsg("请输入读取弹幕房间号");
+                return;
+            }
+
+            Integer roomid = changeStrToInt(readDanmuRoodIdField.getText());
+            if(roomid == null){
+                showErrMsg("读取弹幕房间号错误");
+                return;
+            }
+
+            damuReceiver.startListenToRoom(roomid, logMsg ->{
+                                                addLog(logMsg);
+                                            }, client ->{
+
+                                            }, danmu ->{
+                                                dealDanmu(danmu);
+                                            });
+        });
+        sendInfoPanel.add(readDanmuStartBtn);
+
+
+        //日记
         logTextArea = new JTextArea();
         logTextArea.setLineWrap(true);
-        
-
         JScrollPane logScrollPanel = new JScrollPane(logTextArea);
         logScrollPanel.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED); 
         Dimension logScrollPanelSize = logScrollPanel.getPreferredSize();
         logScrollPanelSize.height = 50;
         logScrollPanel.setPreferredSize(logScrollPanelSize);
         damuInfoPanel.add(logScrollPanel, BorderLayout.SOUTH);
+    }
 
+    private Integer changeStrToInt(String str){
+        try{
+            return Integer.parseInt(str);
+        }catch (Exception e){
 
+        }
+        return null;
+    }
+
+    /**
+     * 处理弹幕信息
+     * @param danmu
+     */
+    private void dealDanmu(DanmuInfo danmu) {
+        addLog(danmu + "");
     }
 
     private void addLog(String msg){
@@ -216,6 +284,7 @@ public class LivetranslateFrame extends JFrame {
             logTextArea.setText("");
         }
         logTextArea.append(msg + "\n");
+        logTextArea.setCaretPosition(logTextArea.getText().length());
     }
 
     private void enterPressesWhenFocused(JTextArea textField, ActionListener actionListener) {

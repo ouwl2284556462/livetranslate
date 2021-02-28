@@ -18,7 +18,6 @@ import java.util.zip.Inflater;
 @Slf4j
 public class DamuReceiverMsgDecoder extends ByteToMessageDecoder {
 
-
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf in, List<Object> list) throws Exception {
         int readableBytes = in.readableBytes();
@@ -105,16 +104,16 @@ public class DamuReceiverMsgDecoder extends ByteToMessageDecoder {
             case 5:
                 //playerCommand (OpSendMsgReply)
                 String json = new String(body, StandardCharsets.UTF_8);
-                log.info("receive json :" + json);
+                log.debug("receive json :" + json);
                 bodyInfo = new ObjectMapper().readValue(json, Map.class);
                 break;
             case 8:
                 // (OpAuthReply)
                 String str = new String(body, StandardCharsets.UTF_8);
-                log.info("receive action 8 :" + str);
+                log.debug("receive action 8 :" + str);
                 break;
             default:
-                log.info("receive other action : " + bodyInfo);
+                log.debug("receive other action : " + bodyInfo);
                 break;
         }
 

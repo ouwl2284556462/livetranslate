@@ -2,6 +2,7 @@ package com.owl.livetranslate.network.receiver;
 
 import com.owl.livetranslate.bean.receiver.BiliMsgPacket;
 import com.owl.livetranslate.bean.receiver.ChannelInfo;
+import com.owl.livetranslate.bean.receiver.DanmuInfo;
 import com.owl.livetranslate.utils.RandomUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
@@ -17,6 +18,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 @Slf4j
 public class DamuReceiverClient {
@@ -37,8 +39,9 @@ public class DamuReceiverClient {
 
     /**
      * 连接到B站直播服务
+     * @param danmuCb
      */
-    public void connect() throws InterruptedException, UnknownHostException {
+    public void connect(Consumer<DanmuInfo> danmuCb) throws InterruptedException, UnknownHostException {
         alive = true;
 
         InetAddress[] allByName = InetAddress.getAllByName(cidInfo.getHost());
@@ -57,7 +60,7 @@ public class DamuReceiverClient {
             protected void initChannel(SocketChannel socketChannel){
                 socketChannel.pipeline().addLast(new DamuReceiverMsgEncoder());
                 socketChannel.pipeline().addLast(new DamuReceiverMsgDecoder());
-                socketChannel.pipeline().addLast(new DamuReceiverMsgClientHandler());
+                socketChannel.pipeline().addLast(new DamuReceiverMsgClientHandler(danmuCb));
             }
         });
 

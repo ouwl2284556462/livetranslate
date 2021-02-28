@@ -13,7 +13,7 @@ public class LivetranslateApplication{
        // ConfigurableApplicationContext applicationContext = builder.headless(false).web(WebApplicationType.NONE).run(args);
     	System.setProperty("java.awt.headless","false");
         ConfigurableApplicationContext applicationContext = SpringApplication.run(LivetranslateApplication.class, args);
-        new LivetranslateFrame(applicationContext);
+        //new LivetranslateFrame(applicationContext);
     }
 
 }
