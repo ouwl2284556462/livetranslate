@@ -1,0 +1,6 @@
+damu:
+  url: https://api.live.bilibili.com/msg/send
+  receive:
+    cidInfoUrl: https://api.live.bilibili.com/room/v1/Danmu/getConf?room_id=
+
+

@@ -20,10 +20,10 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 
+import com.owl.livetranslate.network.sender.DamuSender;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.util.StringUtils;
 
-import com.owl.livetranslate.network.DamuSender;
 
 public class LivetranslateFrame extends JFrame {
 

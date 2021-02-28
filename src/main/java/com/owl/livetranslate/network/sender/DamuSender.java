@@ -1,6 +1,7 @@
-package com.owl.livetranslate.network;
+package com.owl.livetranslate.network.sender;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -17,6 +18,7 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 
 @Component
+@Slf4j
 public class DamuSender {
 
     @Value("${damu.url}")
@@ -80,9 +82,9 @@ public class DamuSender {
 
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(params, headers);
-        System.out.println(request.toString());
+        log.info(request.toString());
         ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-        System.out.println(response.toString());
+        log.info(response.toString());
     }
 
 }
