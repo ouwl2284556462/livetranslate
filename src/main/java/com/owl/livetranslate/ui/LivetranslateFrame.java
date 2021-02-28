@@ -1,4 +1,4 @@
-package com.owl.livetranslate;
+package com.owl.livetranslate.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;

@@ -1,5 +1,6 @@
 package com.owl.livetranslate;
 
+import com.owl.livetranslate.ui.LivetranslateFrame;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;

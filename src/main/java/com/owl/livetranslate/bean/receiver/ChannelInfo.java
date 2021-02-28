@@ -9,4 +9,5 @@ public class ChannelInfo {
     private String token;
     private String host;
     private int port;
+    private int roomId;
 }

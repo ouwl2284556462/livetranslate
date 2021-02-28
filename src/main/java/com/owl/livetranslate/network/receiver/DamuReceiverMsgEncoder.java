@@ -22,7 +22,7 @@ public class DamuReceiverMsgEncoder extends MessageToByteEncoder<BiliMsgPacket> 
         byte[] playload = bodyStr.getBytes(StandardCharsets.UTF_8);
         int packetlength = sendMsgPacket.getPacketlength();
         if (packetlength < 1){
-            packetlength = playload.length + 16;
+            packetlength = playload.length + ProtocolConsts.HEAD_LENGTH;
         }
 
 

@@ -18,29 +18,28 @@ import java.util.zip.Inflater;
 @Slf4j
 public class DamuReceiverMsgDecoder extends ByteToMessageDecoder {
 
-    private static final int HEAD_LENGTH = 16;
 
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf in, List<Object> list) throws Exception {
         int readableBytes = in.readableBytes();
-        if (readableBytes < HEAD_LENGTH) {
+        if (readableBytes < ProtocolConsts.HEAD_LENGTH) {
             return;
         }
 
         //标记一下当前的readIndex的位置
         in.markReaderIndex();
 
-        byte[] headerBytes = new byte[HEAD_LENGTH];
+        byte[] headerBytes = new byte[ProtocolConsts.HEAD_LENGTH];
         in.readBytes(headerBytes);
         BiliMsgPacket packet = getHeaderPacketInfo(headerBytes);
-        int payloadlength = packet.getPacketlength() - HEAD_LENGTH;
+        int payloadlength = packet.getPacketlength() - ProtocolConsts.HEAD_LENGTH;
         if (payloadlength < 1) {
             //没有内容了
             return;
         }
 
 
-        if ((readableBytes - HEAD_LENGTH) < payloadlength) {
+        if ((readableBytes - ProtocolConsts.HEAD_LENGTH) < payloadlength) {
             //读到的消息体长度如果小于我们传送过来的消息长度，则resetReaderIndex.
             // 这个配合markReaderIndex使用的。把readIndex重置到mark的地方
             in.resetReaderIndex();
@@ -49,9 +48,6 @@ public class DamuReceiverMsgDecoder extends ByteToMessageDecoder {
 
         byte[] body = new byte[payloadlength];
         in.readBytes(body);
-
-
-
         if(packet.getVer() != 2 || packet.getAction() != 5){
             dealAndSetBodyInfo(packet, body);
             list.add(packet);
@@ -62,11 +58,11 @@ public class DamuReceiverMsgDecoder extends ByteToMessageDecoder {
         decompress.setInput(body);
 
         while(!decompress.finished()){
-            byte[] decompressHeadBytes = new byte[HEAD_LENGTH];
+            byte[] decompressHeadBytes = new byte[ProtocolConsts.HEAD_LENGTH];
             decompress.inflate(decompressHeadBytes);
             BiliMsgPacket subPacket = getHeaderPacketInfo(decompressHeadBytes);
 
-            byte[] subBody = new byte[subPacket.getPacketlength() - HEAD_LENGTH];
+            byte[] subBody = new byte[subPacket.getPacketlength() - ProtocolConsts.HEAD_LENGTH];
             decompress.inflate(subBody);
 
             dealAndSetBodyInfo(subPacket, subBody);
@@ -85,7 +81,7 @@ public class DamuReceiverMsgDecoder extends ByteToMessageDecoder {
                 .param(headerBuffer.getInt()).build();
 
 
-        if (packet.getPacketlength() < HEAD_LENGTH) {
+        if (packet.getPacketlength() < ProtocolConsts.HEAD_LENGTH) {
             log.error("协议失败: (L:" + packet.getPacketlength() + ")");
             throw new RuntimeException("协议失败: (L:" + packet.getPacketlength() + ")");
         }
