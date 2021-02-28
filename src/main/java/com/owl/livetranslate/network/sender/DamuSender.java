@@ -53,14 +53,7 @@ public class DamuSender {
     }
 
 
-    public void sendDamu(int roomid, String msg, String cookied, String csrf, String speaker) {
-        if(StringUtils.hasText(speaker)){
-            msg = String.format(formatWithName, speaker, msg);
-        }else{
-            msg = String.format(formatNoName, msg);
-        }
-
-
+    public void sendDamuRaw(int roomid, String msg, String cookied, String csrf){
         HttpHeaders headers = new HttpHeaders();
         headers.put(HttpHeaders.COOKIE, Arrays.asList(cookied));
         headers.put(HttpHeaders.ACCEPT_ENCODING, Arrays.asList("gzip, deflate, br"));
@@ -85,6 +78,16 @@ public class DamuSender {
         log.info(request.toString());
         ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
         log.info(response.toString());
+    }
+
+    public void sendDamu(int roomid, String msg, String cookied, String csrf, String speaker) {
+        if(StringUtils.hasText(speaker)){
+            msg = String.format(formatWithName, speaker, msg);
+        }else{
+            msg = String.format(formatNoName, msg);
+        }
+
+        sendDamuRaw(roomid, msg, cookied, csrf);
     }
 
 }

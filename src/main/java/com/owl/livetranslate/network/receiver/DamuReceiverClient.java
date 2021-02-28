@@ -5,10 +5,7 @@ import com.owl.livetranslate.bean.receiver.ChannelInfo;
 import com.owl.livetranslate.bean.receiver.DanmuInfo;
 import com.owl.livetranslate.utils.RandomUtils;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -41,7 +38,7 @@ public class DamuReceiverClient {
      * 连接到B站直播服务
      * @param danmuCb
      */
-    public void connect(Consumer<DanmuInfo> danmuCb) throws InterruptedException, UnknownHostException {
+    public void connect(Consumer<DanmuInfo> danmuCb, Consumer<ChannelHandlerContext> disconnectCb) throws InterruptedException, UnknownHostException {
         alive = true;
 
         InetAddress[] allByName = InetAddress.getAllByName(cidInfo.getHost());
@@ -55,12 +52,17 @@ public class DamuReceiverClient {
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
         bootstrap.group(eventLoopGroup);
         bootstrap.remoteAddress(ip, port);
+
+        Consumer<ChannelHandlerContext> disconnectDeal = ctx ->{
+            stop();
+        };
+
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel socketChannel){
                 socketChannel.pipeline().addLast(new DamuReceiverMsgEncoder());
                 socketChannel.pipeline().addLast(new DamuReceiverMsgDecoder());
-                socketChannel.pipeline().addLast(new DamuReceiverMsgClientHandler(danmuCb));
+                socketChannel.pipeline().addLast(new DamuReceiverMsgClientHandler(danmuCb, disconnectDeal.andThen(disconnectCb)));
             }
         });
 
@@ -72,6 +74,7 @@ public class DamuReceiverClient {
 
         channel = (SocketChannel) future.channel();
     }
+
 
     /**
      * 加入到房间
@@ -118,12 +121,17 @@ public class DamuReceiverClient {
 
     public synchronized void stop(){
         alive = false;
-        if(eventLoopGroup != null){
-            if(!eventLoopGroup.isShutdown() && !eventLoopGroup.isShuttingDown()){
-                log.info("关闭eventLoopGroup");
-                eventLoopGroup.shutdownGracefully();
+        try{
+            if(eventLoopGroup != null){
+                if(!eventLoopGroup.isShutdown() && !eventLoopGroup.isShuttingDown()){
+                    log.info("关闭eventLoopGroup");
+                    eventLoopGroup.shutdownGracefully();
+                }
+                eventLoopGroup = null;
             }
-            eventLoopGroup = null;
+        }catch (Exception e){
+            log.error("关闭eventLoogGroup失败", e);
         }
+
     }
 }

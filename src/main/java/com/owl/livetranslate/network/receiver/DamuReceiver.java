@@ -7,10 +7,7 @@ import com.owl.livetranslate.bean.receiver.ChannelInfo;
 import com.owl.livetranslate.bean.receiver.DanmuInfo;
 import com.owl.livetranslate.utils.RandomUtils;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -68,7 +65,7 @@ public class DamuReceiver {
      * 开始监听房间信息
      * @param roomId
      */
-    public void startListenToRoom(int roomId, Consumer<String> logInfo, Consumer<DamuReceiverClient> startSuccessCb, Consumer<DanmuInfo> danmuCb) {
+    public void startListenToRoom(int roomId, Consumer<String> logInfo, Consumer<DamuReceiverClient> startSuccessCb, Consumer<DanmuInfo> danmuCb, Consumer<ChannelHandlerContext> disconnectCb) {
         executorService.execute(() ->{
             logInfo.accept("获取房间信息中...");
             ChannelInfo cidInfo = getCidInfo(roomId);
@@ -82,7 +79,7 @@ public class DamuReceiver {
             try{
                 logInfo.accept("连接服务器中...");
                 client = new DamuReceiverClient(cidInfo);
-                client.connect(danmuCb);
+                client.connect(danmuCb, disconnectCb);
                 log.info("连接成功");
                 logInfo.accept("连接成功");
 
@@ -96,6 +93,10 @@ public class DamuReceiver {
             }catch (Exception e){
                 log.error("接收失败", e);
                 logInfo.accept("接收失败：" + e.getMessage());
+            }finally {
+                if(client != null){
+                    client.stop();
+                }
             }
         });
     }

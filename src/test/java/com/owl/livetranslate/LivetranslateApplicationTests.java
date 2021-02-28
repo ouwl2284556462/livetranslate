@@ -64,6 +64,9 @@ class LivetranslateApplicationTests {
 				},
 				danmuInfo -> {
 
+				},
+				ctx ->{
+
 				});
 
 		while(true){

@@ -8,26 +8,20 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.KeyStroke;
+import javax.swing.*;
 
 import com.owl.livetranslate.bean.receiver.DanmuInfo;
 import com.owl.livetranslate.network.receiver.DamuReceiver;
+import com.owl.livetranslate.network.receiver.DamuReceiverClient;
 import com.owl.livetranslate.network.sender.DamuSender;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -41,18 +35,30 @@ public class LivetranslateFrame extends JFrame {
     @Autowired
     private DamuReceiver damuReceiver;
 
+    @Autowired
+    private ExecutorService executorService;
+
     // 窗口宽度
-    public static final int WIDTH = 400;
+    public static final int WIDTH = 450;
     // 窗口高度
     public static final int HEIGHT = 400;
     private JTextArea sendTextArea;
     private boolean hasSettedSetting;
     private String speaker;
-    private String cookied;
-    private String csrf;
+    private String[] cookieds;
+    private String[] csrfs;
+    private int curCookiedIdx;
+    private long lastTimeOfUseCookied;
+
     private int[] roomids;
     private JTextArea logTextArea;
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    private Integer readRoomId;
+    private LinkedBlockingQueue<DanmuInfo> danmuQues;
+    private Pattern targetDanmuPattern;
+    private volatile boolean readingDanmu;
+    private Future<?> dealDamuTask;
+    private DamuReceiverClient danmuclientReader;
 
     public LivetranslateFrame() {
 
@@ -114,7 +120,7 @@ public class LivetranslateFrame extends JFrame {
         cookiedInfoPanel.setLayout(new FlowLayout(FlowLayout.LEADING, 10, 5));
         damuInfoPanel.add(cookiedInfoPanel, BorderLayout.NORTH);
 
-        JLabel cookiedLabel = new JLabel("cookied");
+        JLabel cookiedLabel = new JLabel("cookied(用'@!@'分割)");
         cookiedInfoPanel.add(cookiedLabel);
 
         JTextArea cookiedTextArea = new JTextArea();
@@ -144,7 +150,7 @@ public class LivetranslateFrame extends JFrame {
             }
 
             if (!StringUtils.hasText(cookiedTextArea.getText())) {
-                showErrMsg("cookied");
+                showErrMsg("请输入cookied");
                 return;
             }
 
@@ -168,8 +174,11 @@ public class LivetranslateFrame extends JFrame {
             hasSettedSetting = true;
 
             speaker = speakerTextField.getText();
-            cookied = cookiedTextArea.getText();
-            csrf = damuSender.getCsrfByCookied(cookied);
+            cookieds = cookiedTextArea.getText().split("@!@");
+            csrfs = new String[cookieds.length];
+            for (int i = 0; i < cookieds.length; i++) {
+                csrfs[i] = damuSender.getCsrfByCookied(cookieds[i]);
+            }
         });
 
 
@@ -192,26 +201,8 @@ public class LivetranslateFrame extends JFrame {
             }
 
             String sendMsg = msg;
-            executorService.execute(() ->{
-                for (int i = 0; i < roomids.length; i++) {
-                    try{
-                        int roomid = roomids[i];
-                        damuSender.sendDamu(roomid, sendMsg, cookied, csrf, speaker);
-                        addLog(String.format("roomId:%s， 内容:%s, 发送成功", roomid, sendMsg));
-                    }catch (Exception exception){
-                        addLog("发送失败:" + exception.getMessage());
-                    }
-
-                    if(i == roomids.length - 1){
-                        try {
-                            TimeUnit.SECONDS.sleep(1);
-                        } catch (InterruptedException interruptedException) {
-                            interruptedException.printStackTrace();
-                        }
-                    }
-                }
-
-            });
+            //异步发信息到房间
+            sendMsgAsyn(sendMsg, false);
         });
 
 
@@ -227,26 +218,50 @@ public class LivetranslateFrame extends JFrame {
         readDanmuRoodIdField.setPreferredSize(new Dimension(50, 20));
         sendInfoPanel.add(readDanmuRoodIdField);
 
-        JButton readDanmuStartBtn = new JButton("开始读取");
+        JLabel targetDanmuRegxLabel = new JLabel("抓取弹幕格式");
+        sendInfoPanel.add(targetDanmuRegxLabel);
+        JTextField targetDanmuRegxField = new JTextField("【.*】");
+        targetDanmuRegxField.setPreferredSize(new Dimension(50, 20));
+        sendInfoPanel.add(targetDanmuRegxField);
+
+        JButton readDanmuStartBtn = new JButton("开始读取翻译");
         readDanmuStartBtn.addActionListener( e -> {
+            if(readingDanmu){
+                stopReadDanmu();
+
+                readDanmuStartBtn.setText("开始读取翻译");
+                return;
+            }
+
             if (!StringUtils.hasText(readDanmuRoodIdField.getText())) {
                 showErrMsg("请输入读取弹幕房间号");
                 return;
             }
 
-            Integer roomid = changeStrToInt(readDanmuRoodIdField.getText());
-            if(roomid == null){
+            readRoomId = changeStrToInt(readDanmuRoodIdField.getText());
+            if(readRoomId == null){
                 showErrMsg("读取弹幕房间号错误");
                 return;
             }
 
-            damuReceiver.startListenToRoom(roomid, logMsg ->{
-                                                addLog(logMsg);
-                                            }, client ->{
+            if (!StringUtils.hasText(targetDanmuRegxField.getText())) {
+                showErrMsg("请输入抓取弹幕格式");
+                return;
+            }
 
-                                            }, danmu ->{
-                                                dealDanmu(danmu);
-                                            });
+            if(!hasSettedSetting){
+                showErrMsg("请先设置好cookied信息");
+                return;
+            }
+
+
+
+            String targetDanmuRegxStr = targetDanmuRegxField.getText();
+            targetDanmuPattern = Pattern.compile(targetDanmuRegxStr);
+
+            readDanmuStartBtn.setText("停止读取");
+            readingDanmu = true;
+            startReadRoom();
         });
         sendInfoPanel.add(readDanmuStartBtn);
 
@@ -260,6 +275,126 @@ public class LivetranslateFrame extends JFrame {
         logScrollPanelSize.height = 50;
         logScrollPanel.setPreferredSize(logScrollPanelSize);
         damuInfoPanel.add(logScrollPanel, BorderLayout.SOUTH);
+    }
+
+    private void sendMsgAsyn(String sendMsg, boolean isRaw) {
+        executorService.execute(() ->{
+            for (int i = 0; i < roomids.length; i++) {
+                try{
+                    int roomid = roomids[i];
+                    int nextCookiedIdx = getNextCookiedIdx();
+                    if(isRaw){
+                        damuSender.sendDamuRaw(roomid, sendMsg, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx]);
+                    }else{
+                        damuSender.sendDamu(roomid, sendMsg, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx], speaker);
+                    }
+
+                    addLog(String.format("roomId:%s， 内容:%s, 发送成功", roomid, sendMsg));
+                }catch (Exception exception){
+                    addLog("发送失败:" + exception.getMessage());
+                }
+            }
+
+        });
+    }
+
+    private synchronized int getNextCookiedIdx() throws InterruptedException {
+        int result = curCookiedIdx;
+        ++curCookiedIdx;
+        if(curCookiedIdx >= cookieds.length){
+            curCookiedIdx = 0;
+        }
+
+        if(result == 0){
+            //要距离上一次使用的间隔大于1秒
+            long diff = System.currentTimeMillis() - lastTimeOfUseCookied;
+            if(diff < 1100){
+                TimeUnit.MILLISECONDS.sleep(diff);
+            }
+            lastTimeOfUseCookied = System.currentTimeMillis();
+        }
+
+        return result;
+    }
+
+    private synchronized void startReadRoom(){
+        if(danmuQues == null){
+            danmuQues = new LinkedBlockingQueue<DanmuInfo>();
+        }
+        danmuQues.clear();
+
+        damuReceiver.startListenToRoom(readRoomId, logMsg ->{
+                                dealDamuReceiverLog(logMsg);
+                            }, client ->{
+                                dealStartDamuSucess(client);
+                            }, danmu ->{
+                                dealDanmu(danmu);
+                            },
+                            ctx ->{
+                                dealDamuReceiverDisconnect();
+                            });
+    }
+
+    private synchronized void dealStartDamuSucess(DamuReceiverClient client) {
+        danmuclientReader = client;
+        dealDamuTask = executorService.submit(() -> {
+            while (readingDanmu) {
+                try {
+                    DanmuInfo danmuInfo = danmuQues.poll(1, TimeUnit.SECONDS);
+                    if(!readingDanmu){
+                        break;
+                    }
+
+                    if(danmuInfo == null){
+                        continue;
+                    }
+
+                    String content = danmuInfo.getContent();
+                    if (!StringUtils.hasText(content)) {
+                        continue;
+                    }
+
+                    Matcher matcher = targetDanmuPattern.matcher(content);
+                    if (!matcher.find()) {
+                        continue;
+                    }
+
+                    sendMsgAsyn(content, true);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+    }
+
+    private synchronized void stopReadDanmu(){
+        danmuclientReader.stop();
+        readingDanmu = false;
+        danmuQues.clear();
+        dealDamuTask.cancel(true);
+        dealDamuTask = null;
+    }
+
+    private synchronized void dealDamuReceiverDisconnect() {
+        SwingUtilities.invokeLater(() ->{
+            addLog("掉线");
+        });
+
+        if(readingDanmu){
+            stopReadDanmu();
+            //重新连接
+            SwingUtilities.invokeLater(() ->{
+                addLog("重新连接...");
+            });
+            startReadRoom();
+        }
+    }
+
+    private void dealDamuReceiverLog(String logMsg) {
+        SwingUtilities.invokeLater(() ->{
+            addLog(logMsg);    
+        });
     }
 
     private Integer changeStrToInt(String str){
@@ -276,7 +411,7 @@ public class LivetranslateFrame extends JFrame {
      * @param danmu
      */
     private void dealDanmu(DanmuInfo danmu) {
-        addLog(danmu + "");
+        danmuQues.offer(danmu);
     }
 
     private void addLog(String msg){

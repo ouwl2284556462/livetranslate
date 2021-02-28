@@ -14,14 +14,17 @@ import java.util.function.Consumer;
 public class DamuReceiverMsgClientHandler extends SimpleChannelInboundHandler<BiliMsgPacket> {
 
     private final Consumer<DanmuInfo> danmuCb;
+    private final Consumer<ChannelHandlerContext> disconnectCb;
 
-    public DamuReceiverMsgClientHandler(Consumer<DanmuInfo> danmuCb) {
+    public DamuReceiverMsgClientHandler(Consumer<DanmuInfo> danmuCb, Consumer<ChannelHandlerContext> disconnectCb) {
         this.danmuCb = danmuCb;
+        this.disconnectCb = disconnectCb;
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx){
         log.info("断开连接执行");
+        disconnectCb.accept(ctx);
     }
  
     @Override
