@@ -59,6 +59,7 @@ public class LivetranslateFrame extends JFrame {
     private volatile boolean readingDanmu;
     private Future<?> dealDamuTask;
     private DamuReceiverClient danmuclientReader;
+    private volatile boolean pauseDanmu;
 
     public LivetranslateFrame() {
 
@@ -265,6 +266,20 @@ public class LivetranslateFrame extends JFrame {
         });
         sendInfoPanel.add(readDanmuStartBtn);
 
+        JButton readDanmuPauseBtn = new JButton("暂停");
+        sendInfoPanel.add(readDanmuPauseBtn);
+        readDanmuPauseBtn.addActionListener( e -> {
+            if(isPauseDanmu()){
+                setPauseDanmu(false);
+                readDanmuPauseBtn.setText("暂停");
+                return;
+            }
+
+            setPauseDanmu(true);
+            readDanmuPauseBtn.setText("开始");
+        });
+
+
 
         //日记
         logTextArea = new JTextArea();
@@ -359,13 +374,24 @@ public class LivetranslateFrame extends JFrame {
                         continue;
                     }
 
-                    sendMsgAsyn(content, true);
+                    if(!isPauseDanmu()){
+                        sendMsgAsyn(content, true);
+                    }
+
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
         });
 
+    }
+
+    private synchronized void setPauseDanmu(boolean b){
+        pauseDanmu = b;
+    }
+
+    private synchronized boolean isPauseDanmu(){
+        return pauseDanmu;
     }
 
     private synchronized void stopReadDanmu(){
