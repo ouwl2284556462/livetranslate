@@ -59,7 +59,7 @@ public class LivetranslateFrame extends JFrame {
     private volatile boolean readingDanmu;
     private Future<?> dealDamuTask;
     private DamuReceiverClient danmuclientReader;
-    private volatile boolean pauseDanmu;
+    private boolean pauseDanmu;
 
     public LivetranslateFrame() {
 
