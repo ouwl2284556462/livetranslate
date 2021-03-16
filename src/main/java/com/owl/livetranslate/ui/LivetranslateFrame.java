@@ -293,37 +293,36 @@ public class LivetranslateFrame extends JFrame {
     }
 
     private void sendMsgAsyn(String sendMsg, boolean isRaw) {
-        String[] temp = null;
-        //B站每次只能发送一定字数，因此太长分开发送
-        int maxSendPerLength = 15;
-        int sendMsgLength = sendMsg.length();
-        if(sendMsgLength >= maxSendPerLength){
-            int count = (int) Math.ceil(((float)sendMsgLength) / (float)maxSendPerLength);
-            temp = new String[count];
-            int index = 0;
-
-            for(int i = 0; i < count; ++i){
-                int startIndex = i * maxSendPerLength;
-                temp[i] = sendMsg.substring(startIndex, Math.min(startIndex + maxSendPerLength, sendMsgLength));
-            }
-        }else{
-            temp = new String[]{sendMsg};
-        }
-
-        String[] messges = temp;
         executorService.execute(() ->{
+            String[] messges = null;
+            //B站每次只能发送一定字数，因此太长分开发送
+            int maxSendPerLength = 15;
+            int sendMsgLength = sendMsg.length();
+            if(sendMsgLength >= maxSendPerLength){
+                int count = (int) Math.ceil(((float)sendMsgLength) / (float)maxSendPerLength);
+                messges = new String[count];
+                int index = 0;
+
+                for(int i = 0; i < count; ++i){
+                    int startIndex = i * maxSendPerLength;
+                    messges[i] = sendMsg.substring(startIndex, Math.min(startIndex + maxSendPerLength, sendMsgLength));
+                }
+            }else{
+                messges = new String[]{sendMsg};
+            }
+
             for (String messge : messges) {
                 for (int i = 0; i < roomids.length; i++) {
                     try{
                         int roomid = roomids[i];
                         int nextCookiedIdx = getNextCookiedIdx();
                         if(isRaw){
-                            damuSender.sendDamuRaw(roomid, sendMsg, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx]);
+                            damuSender.sendDamuRaw(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx]);
                         }else{
-                            damuSender.sendDamu(roomid, sendMsg, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx], speaker);
+                            damuSender.sendDamu(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx], speaker);
                         }
 
-                        addLog(String.format("roomId:%s， 内容:%s, 发送成功", roomid, sendMsg));
+                        addLog(String.format("roomId:%s， 内容:%s, 发送成功", roomid, messge));
                     }catch (Exception exception){
                         addLog("发送失败:" + exception.getMessage());
                     }
@@ -342,7 +341,7 @@ public class LivetranslateFrame extends JFrame {
         if(result == 0){
             //要距离上一次使用的间隔大于1秒
             long diff = System.currentTimeMillis() - lastTimeOfUseCookied;
-            if(diff < 1100){
+            if(diff < 1500){
                 TimeUnit.MILLISECONDS.sleep(diff);
             }
             lastTimeOfUseCookied = System.currentTimeMillis();
