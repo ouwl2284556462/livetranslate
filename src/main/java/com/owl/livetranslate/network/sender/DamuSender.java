@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -53,7 +54,7 @@ public class DamuSender {
     }
 
 
-    public void sendDamuRaw(int roomid, String msg, String cookied, String csrf){
+    public String sendDamuRaw(int roomid, String msg, String cookied, String csrf){
         HttpHeaders headers = new HttpHeaders();
         headers.put(HttpHeaders.COOKIE, Arrays.asList(cookied));
         headers.put(HttpHeaders.ACCEPT_ENCODING, Arrays.asList("gzip, deflate, br"));
@@ -76,18 +77,21 @@ public class DamuSender {
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(params, headers);
         log.info(request.toString());
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+        Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
         log.info(response.toString());
+
+        String message = (String) response.get("message");
+        return message;
     }
 
-    public void sendDamu(int roomid, String msg, String cookied, String csrf, String speaker) {
+    public String sendDamu(int roomid, String msg, String cookied, String csrf, String speaker) {
         if(StringUtils.hasText(speaker)){
             msg = String.format(formatWithName, speaker, msg);
         }else{
             msg = String.format(formatNoName, msg);
         }
 
-        sendDamuRaw(roomid, msg, cookied, csrf);
+        return sendDamuRaw(roomid, msg, cookied, csrf);
     }
 
 }

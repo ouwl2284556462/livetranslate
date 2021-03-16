@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 @Component
 public class LivetranslateFrame extends JFrame {
 
+
     @Autowired
     private DamuSender damuSender;
 
@@ -37,6 +38,13 @@ public class LivetranslateFrame extends JFrame {
 
     @Autowired
     private ExecutorService executorService;
+
+    // B站最长弹幕长度
+    public static final int DANMU_MAX_SEND_LENGTH = 15;
+    // 获取cookied的超时时间
+    public static final int GET_COOKIED_INDEX_TIMEOUT = 1200;
+    //重试发弹幕次数
+    public static final int TRY_SEND_DAMNU_COUNT = 5;
 
     // 窗口宽度
     public static final int WIDTH = 450;
@@ -54,7 +62,7 @@ public class LivetranslateFrame extends JFrame {
     private JTextArea logTextArea;
 
     private Integer readRoomId;
-    private LinkedBlockingQueue<DanmuInfo> danmuQues;
+    private LinkedBlockingQueue<String> danmuQues;
     private Pattern targetDanmuPattern;
     private volatile boolean readingDanmu;
     private Future<?> dealDamuTask;
@@ -201,9 +209,8 @@ public class LivetranslateFrame extends JFrame {
                 return;
             }
 
-            String sendMsg = msg;
             //异步发信息到房间
-            sendMsgAsyn(sendMsg, false);
+            sendMsgAsyn(msg, false);
         });
 
 
@@ -292,46 +299,85 @@ public class LivetranslateFrame extends JFrame {
         damuInfoPanel.add(logScrollPanel, BorderLayout.SOUTH);
     }
 
-    private void sendMsgAsyn(String sendMsg, boolean isRaw) {
-        executorService.execute(() ->{
-            String[] messges = null;
-            //B站每次只能发送一定字数，因此太长分开发送
-            int maxSendPerLength = 15;
-            int sendMsgLength = sendMsg.length();
-            if(sendMsgLength >= maxSendPerLength){
-                int count = (int) Math.ceil(((float)sendMsgLength) / (float)maxSendPerLength);
-                messges = new String[count];
-                int index = 0;
+    /**
+     * 只能串行发送
+     */
+    private synchronized void sendMsgWithTry(String sendMsg, boolean isRaw) throws InterruptedException {
+        String[] msgs = splitMessage(sendMsg);
+        if(null == msgs){
+            return;
+        }
 
-                for(int i = 0; i < count; ++i){
-                    int startIndex = i * maxSendPerLength;
-                    messges[i] = sendMsg.substring(startIndex, Math.min(startIndex + maxSendPerLength, sendMsgLength));
-                }
-            }else{
-                messges = new String[]{sendMsg};
-            }
+        for (String messge : msgs) {
+            for (int i = 0; i < roomids.length; i++) {
+                int roomid = roomids[i];
+                int tryCount = TRY_SEND_DAMNU_COUNT;
+                String responseMsg = null;
+                while(tryCount > 0){
+                    int nextCookiedIdx = getNextCookiedIdx();
+                    if (isRaw) {
+                        responseMsg = damuSender.sendDamuRaw(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx]);
+                    } else {
+                        responseMsg = damuSender.sendDamu(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx], speaker);
+                    }
 
-            for (String messge : messges) {
-                for (int i = 0; i < roomids.length; i++) {
-                    try{
-                        int roomid = roomids[i];
-                        int nextCookiedIdx = getNextCookiedIdx();
-                        if(isRaw){
-                            damuSender.sendDamuRaw(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx]);
-                        }else{
-                            damuSender.sendDamu(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx], speaker);
+                    //msg in 1s
+                    //发送失败
+                    if("msg in 1s".equals(responseMsg) || "msg repeat".equals(responseMsg)){
+                        addLog(String.format("roomId:%s， 内容:%s, 发送失败，重试%s", roomid, messge, tryCount));
+                        --tryCount;
+                        if("msg repeat".equals(responseMsg)){
+                            //重复时稍稍改变一下内容
+                            messge = messge + tryCount;
                         }
 
-                        addLog(String.format("roomId:%s， 内容:%s, 发送成功", roomid, messge));
-                    }catch (Exception exception){
-                        addLog("发送失败:" + exception.getMessage());
+                        TimeUnit.MILLISECONDS.sleep(500);
+                        continue;
                     }
+
+                    addLog(String.format("roomId:%s， 内容:%s, 发送成功", roomid, messge));
+                    break;
                 }
+            }
+        }
+    }
+
+    private void sendMsgAsyn(String sendMsg, boolean isRaw) {
+        executorService.execute(() -> {
+            try {
+                sendMsgWithTry(sendMsg, isRaw);
+            } catch (Exception exception) {
+                addLog("发送失败:" + exception.getMessage());
             }
         });
     }
 
-    private synchronized int getNextCookiedIdx() throws InterruptedException {
+    /**
+     * B站每次只能发送一定字数，因此太长分开发送
+     * @param sendMsg
+     * @return
+     */
+    private String[] splitMessage(String sendMsg) {
+        if(null == sendMsg || !StringUtils.hasText(sendMsg)){
+            return null;
+        }
+
+        int sendMsgLength = sendMsg.length();
+        if (sendMsgLength < DANMU_MAX_SEND_LENGTH) {
+            return new String[]{sendMsg};
+        }
+
+        int count = (int) Math.ceil(((float) sendMsgLength) / (float) DANMU_MAX_SEND_LENGTH);
+        String[] messges = new String[count];
+        for (int i = 0; i < count; ++i) {
+            int startIndex = i * DANMU_MAX_SEND_LENGTH;
+            messges[i] = sendMsg.substring(startIndex, Math.min(startIndex + DANMU_MAX_SEND_LENGTH, sendMsgLength));
+        }
+
+        return messges;
+    }
+
+    private int getNextCookiedIdx() throws InterruptedException {
         int result = curCookiedIdx;
         ++curCookiedIdx;
         if(curCookiedIdx >= cookieds.length){
@@ -341,8 +387,8 @@ public class LivetranslateFrame extends JFrame {
         if(result == 0){
             //要距离上一次使用的间隔大于1秒
             long diff = System.currentTimeMillis() - lastTimeOfUseCookied;
-            if(diff < 1500){
-                TimeUnit.MILLISECONDS.sleep(diff);
+            if(diff < GET_COOKIED_INDEX_TIMEOUT){
+                TimeUnit.MILLISECONDS.sleep(GET_COOKIED_INDEX_TIMEOUT - diff);
             }
             lastTimeOfUseCookied = System.currentTimeMillis();
         }
@@ -352,7 +398,7 @@ public class LivetranslateFrame extends JFrame {
 
     private synchronized void startReadRoom(){
         if(danmuQues == null){
-            danmuQues = new LinkedBlockingQueue<DanmuInfo>();
+            danmuQues = new LinkedBlockingQueue<String>();
         }
         danmuQues.clear();
 
@@ -373,16 +419,15 @@ public class LivetranslateFrame extends JFrame {
         dealDamuTask = executorService.submit(() -> {
             while (readingDanmu) {
                 try {
-                    DanmuInfo danmuInfo = danmuQues.poll(1, TimeUnit.SECONDS);
+                    String content = danmuQues.poll(1, TimeUnit.SECONDS);
                     if(!readingDanmu){
                         break;
                     }
 
-                    if(danmuInfo == null){
+                    if(content == null){
                         continue;
                     }
 
-                    String content = danmuInfo.getContent();
                     if (!StringUtils.hasText(content)) {
                         continue;
                     }
@@ -455,7 +500,14 @@ public class LivetranslateFrame extends JFrame {
      * @param danmu
      */
     private void dealDanmu(DanmuInfo danmu) {
-        danmuQues.offer(danmu);
+        String[] messges = splitMessage(danmu.getContent());
+        if(null == messges){
+            return;
+        }
+
+        for (String messge : messges) {
+            danmuQues.offer(messge);
+        }
     }
 
     private void addLog(String msg){
