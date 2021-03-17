@@ -320,6 +320,7 @@ public class LivetranslateFrame extends JFrame {
                     } else {
                         responseMsg = damuSender.sendDamu(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx], speaker);
                     }
+                    addLog("responseMsg:" + responseMsg);
 
                     //msg in 1s
                     //发送失败
@@ -438,7 +439,7 @@ public class LivetranslateFrame extends JFrame {
                     }
 
                     if(!isPauseDanmu()){
-                        sendMsgAsyn(content, true);
+                        sendMsgWithTry(content, true);
                     }
 
                 } catch (InterruptedException e) {
