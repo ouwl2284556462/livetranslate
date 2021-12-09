@@ -72,7 +72,7 @@ public class LivetranslateFrame extends JFrame {
     public LivetranslateFrame() {
 
         // 设置标题
-        setTitle("联动直播同传广播工具-(喜欢的关注御剑莉亚)");
+        setTitle("owl-直播同传广播工具");
         // 设置大小
         setSize(WIDTH, HEIGHT);
         // 关闭窗口

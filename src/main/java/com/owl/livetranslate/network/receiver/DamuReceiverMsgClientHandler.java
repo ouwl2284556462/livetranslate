@@ -41,6 +41,7 @@ public class DamuReceiverMsgClientHandler extends SimpleChannelInboundHandler<Bi
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, BiliMsgPacket msg)  {
         log.debug("收到消息执行：" + msg);
+        
         if(msg.getAction() != 5){
             return;
         }
