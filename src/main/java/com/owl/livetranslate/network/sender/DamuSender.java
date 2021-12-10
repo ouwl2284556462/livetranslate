@@ -26,7 +26,7 @@ public class DamuSender {
     private String url;
 
 
-    private String formatWithName = "【%s:%s】";
+    private String formatWithName = "%s【%s】";
 
 
     private String formatNoName = "【%s】";
