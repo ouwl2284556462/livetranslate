@@ -42,9 +42,8 @@ public class DamuReceiver {
         String targetUrl = cidInfoUrl + roomid;
         String responseStr = restTemplate.getForObject(targetUrl, String.class);
         log.info(responseStr);
-        Map<String, Object> responseMap;
         try {
-            responseMap = new ObjectMapper().readValue(responseStr, Map.class);
+            Map<String, Object> responseMap = new ObjectMapper().readValue(responseStr, Map.class);
             Map<String, Object> data = (Map<String, Object>) responseMap.get("data");
             String token =  (String) data.get("token");
             String host =  (String) data.get("host");
