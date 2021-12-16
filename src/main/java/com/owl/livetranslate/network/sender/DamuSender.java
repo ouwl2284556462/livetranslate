@@ -57,7 +57,8 @@ public class DamuSender {
     public String sendDamuRaw(int roomid, String msg, String cookied, String csrf){
         HttpHeaders headers = new HttpHeaders();
         headers.put(HttpHeaders.COOKIE, Arrays.asList(cookied));
-        headers.put(HttpHeaders.ACCEPT_ENCODING, Arrays.asList("gzip, deflate, br"));
+        //不要这个，否则响应内容被压缩
+        //headers.put(HttpHeaders.ACCEPT_ENCODING, Arrays.asList("gzip, deflate, br"));
         headers.put(HttpHeaders.USER_AGENT, Arrays.asList("Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.104 Safari/537.36"));
         headers.put(HttpHeaders.ACCEPT_LANGUAGE, Arrays.asList("zh-CN,zh;q=0.9"));
         headers.put(HttpHeaders.CONTENT_TYPE, Arrays.asList("application/x-www-form-urlencoded; charset=UTF-8"));
