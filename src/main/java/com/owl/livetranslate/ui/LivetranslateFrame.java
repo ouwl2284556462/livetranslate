@@ -7,6 +7,11 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -16,20 +21,25 @@ import java.util.regex.Pattern;
 
 import javax.swing.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.owl.livetranslate.bean.receiver.DanmuInfo;
+import com.owl.livetranslate.bean.setting.SettingInfo;
 import com.owl.livetranslate.network.receiver.DamuReceiver;
 import com.owl.livetranslate.network.receiver.DamuReceiverClient;
 import com.owl.livetranslate.network.sender.DamuSender;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Slf4j
 @Component
-public class LivetranslateFrame extends JFrame {
+public class LivetranslateFrame extends JFrame implements InitializingBean {
 
 
+    public static final String SETTING_FILE_NAME = "livetranslate_owl_setting";
     @Autowired
     private DamuSender damuSender;
 
@@ -68,6 +78,9 @@ public class LivetranslateFrame extends JFrame {
     private Future<?> dealDamuTask;
     private DamuReceiverClient danmuclientReader;
     private boolean pauseDanmu;
+    private JTextField roomidTextField;
+    private JTextArea cookiedTextArea;
+    private JButton settingBtn;
 
     public LivetranslateFrame() {
 
@@ -88,10 +101,45 @@ public class LivetranslateFrame extends JFrame {
 
 
         initPanelCont();
+
+
         // 设置窗口屏幕居中
         setLocationRelativeTo(null);
         // 设置可见
         setVisible(true);
+    }
+
+    /**
+     * 加载设置文件的内容
+     */
+    private void loadSettingInfo() {
+        Path path = Paths.get(SETTING_FILE_NAME);
+        if(!Files.exists(path)){
+            return;
+        }
+
+        try {
+            byte[] bytes = Files.readAllBytes(path);
+            if(bytes.length <= 0){
+                return;
+            }
+
+            String content = new String(bytes, StandardCharsets.UTF_8);
+            if(!StringUtils.hasText(content)){
+                return;
+            }
+
+            System.out.println(content);
+            SettingInfo settingInfo = new ObjectMapper().readValue(content, SettingInfo.class);
+
+            roomidTextField.setText(settingInfo.getRoomId());
+            cookiedTextArea.setText(settingInfo.getCookie());
+
+            settingBtn.doClick();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void initPanelCont() {
@@ -110,7 +158,7 @@ public class LivetranslateFrame extends JFrame {
         JLabel roomidLabel = new JLabel("房间id列表(逗号分隔)");
         roomInfoPanel.add(roomidLabel);
 
-        JTextField roomidTextField = new JTextField();
+        roomidTextField = new JTextField();
         roomidTextField.setPreferredSize(new Dimension(100, 20));
         roomInfoPanel.add(roomidTextField);
 
@@ -132,14 +180,14 @@ public class LivetranslateFrame extends JFrame {
         JLabel cookiedLabel = new JLabel("cookied(用'@!@'分割)");
         cookiedInfoPanel.add(cookiedLabel);
 
-        JTextArea cookiedTextArea = new JTextArea();
+        cookiedTextArea = new JTextArea();
         cookiedTextArea.setLineWrap(true);
 
         JScrollPane cookiedScrollPanel = new JScrollPane(cookiedTextArea);
         cookiedScrollPanel.setPreferredSize(new Dimension(150, 50));
         cookiedInfoPanel.add(cookiedScrollPanel);
 
-        JButton settingBtn = new JButton("设置完成");
+        settingBtn = new JButton("设置完成");
         cookiedInfoPanel.add(settingBtn);
         settingBtn.addActionListener(e -> {
             if (hasSettedSetting) {
@@ -188,6 +236,9 @@ public class LivetranslateFrame extends JFrame {
             for (int i = 0; i < cookieds.length; i++) {
                 csrfs[i] = damuSender.getCsrfByCookied(cookieds[i]);
             }
+
+            //保存设置到文件
+            saveSettingInfoToFile();
         });
 
 
@@ -297,6 +348,35 @@ public class LivetranslateFrame extends JFrame {
         logScrollPanelSize.height = 50;
         logScrollPanel.setPreferredSize(logScrollPanelSize);
         damuInfoPanel.add(logScrollPanel, BorderLayout.SOUTH);
+    }
+
+    /**
+     * 保存当前设置到文件，之后启动时直接读取
+     */
+    private void saveSettingInfoToFile(){
+        SettingInfo settingInfo = SettingInfo.builder()
+                                            .cookie(cookiedTextArea.getText())
+                                            .roomId(roomidTextField.getText()).build();
+
+        try {
+            saveContentToFile(new ObjectMapper().writeValueAsString(settingInfo), SETTING_FILE_NAME);
+        } catch (JsonProcessingException e) {
+            showErrMsg("setting info转json失败");
+            e.printStackTrace();
+        } catch (IOException e) {
+            showErrMsg("setting info保存文件失败");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 保存内容到文件
+     * @param content
+     * @param settingFileName
+     * @throws IOException
+     */
+    private void saveContentToFile(String content, String settingFileName) throws IOException {
+        Files.write(Paths.get(settingFileName), content.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -525,5 +605,11 @@ public class LivetranslateFrame extends JFrame {
 
     private void showErrMsg(String msg) {
         JOptionPane.showMessageDialog(null, msg, "错误", JOptionPane.ERROR_MESSAGE);
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        //加载设置文件的内容
+        loadSettingInfo();
     }
 }

@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.owl</groupId>
 	<artifactId>livetranslate</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0</version>
 	<name>livetranslate</name>
 	<description>联动直播翻译工具</description>
 	<properties>
