@@ -85,7 +85,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     public LivetranslateFrame() {
 
         // 设置标题
-        setTitle("owl-直播同传广播工具");
+        setTitle("owl-直播同传广播工具 有问题联系QQ:2284556462");
         // 设置大小
         setSize(WIDTH, HEIGHT);
         // 关闭窗口
