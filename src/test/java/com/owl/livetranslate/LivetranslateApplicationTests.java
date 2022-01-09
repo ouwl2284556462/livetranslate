@@ -43,6 +43,7 @@ class LivetranslateApplicationTests {
 
 	//@Test
 	void testGetChannelId(){
+		//test
 		int roomId = 21449083;
 		ChannelInfo cidInfo = damuReceiver.getCidInfo(roomId);
 
