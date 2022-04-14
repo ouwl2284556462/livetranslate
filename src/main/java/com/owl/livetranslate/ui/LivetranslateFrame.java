@@ -1,8 +1,6 @@
 package com.owl.livetranslate.ui;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -39,6 +37,10 @@ import org.springframework.util.StringUtils;
 public class LivetranslateFrame extends JFrame implements InitializingBean {
 
 
+    private int uiSize = 36;
+
+    private Font defaultFont = new Font("宋体", Font.BOLD, uiSize);
+
     public static final String SETTING_FILE_NAME = "livetranslate_owl_setting";
     @Autowired
     private DamuSender damuSender;
@@ -57,9 +59,9 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     public static final int TRY_SEND_DAMNU_COUNT = 5;
 
     // 窗口宽度
-    public static final int WIDTH = 450;
+    public static final int WIDTH = 1000;
     // 窗口高度
-    public static final int HEIGHT = 400;
+    public static final int HEIGHT = 550;
     private JTextArea sendTextArea;
     private boolean hasSettedSetting;
     private String speaker;
@@ -83,6 +85,11 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     private JButton settingBtn;
 
     public LivetranslateFrame() {
+
+        defaultFont = new Font("宋体", Font.BOLD, uiSize);
+        UIManager.put("OptionPane.font", defaultFont);
+        UIManager.put("OptionPane.messageFont", defaultFont);
+        UIManager.put("OptionPane.buttonFont", defaultFont);
 
         // 设置标题
         setTitle("owl-直播同传广播工具 有问题联系QQ:2284556462");
@@ -114,18 +121,18 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
      */
     private void loadSettingInfo() {
         Path path = Paths.get(SETTING_FILE_NAME);
-        if(!Files.exists(path)){
+        if (!Files.exists(path)) {
             return;
         }
 
         try {
             byte[] bytes = Files.readAllBytes(path);
-            if(bytes.length <= 0){
+            if (bytes.length <= 0) {
                 return;
             }
 
             String content = new String(bytes, StandardCharsets.UTF_8);
-            if(!StringUtils.hasText(content)){
+            if (!StringUtils.hasText(content)) {
                 return;
             }
 
@@ -150,45 +157,45 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BorderLayout());
         rootPanel.add(mainPanel, BorderLayout.CENTER);
+        mainPanel.setLayout(new FlowLayout(FlowLayout.LEADING, 10, 5));
 
-
-        JPanel roomInfoPanel = new JPanel();
-        mainPanel.add(roomInfoPanel, BorderLayout.NORTH);
-        roomInfoPanel.setLayout(new FlowLayout(FlowLayout.LEADING, 10, 5));
         JLabel roomidLabel = new JLabel("房间id列表(逗号分隔)");
-        roomInfoPanel.add(roomidLabel);
+        roomidLabel.setFont(defaultFont);
+        mainPanel.add(roomidLabel);
 
         roomidTextField = new JTextField();
-        roomidTextField.setPreferredSize(new Dimension(100, 20));
-        roomInfoPanel.add(roomidTextField);
+        roomidTextField.setPreferredSize(new Dimension((int)(3.5 * uiSize), uiSize + 5));
+        roomidTextField.setFont(defaultFont);
+        mainPanel.add(roomidTextField);
 
         JLabel speakerLabel = new JLabel("说话人");
-        roomInfoPanel.add(speakerLabel);
+        speakerLabel.setFont(defaultFont);
+        mainPanel.add(speakerLabel);
 
         JTextField speakerTextField = new JTextField();
-        speakerTextField.setPreferredSize(new Dimension(50, 20));
-        roomInfoPanel.add(speakerTextField);
+        speakerTextField.setPreferredSize(new Dimension((int)(3.5 * uiSize), uiSize + 5));
+        speakerTextField.setFont(defaultFont);
+        mainPanel.add(speakerTextField);
 
-        JPanel damuInfoPanel = new JPanel();
-        damuInfoPanel.setLayout(new BorderLayout());
-        mainPanel.add(damuInfoPanel, BorderLayout.CENTER);
 
-        JPanel cookiedInfoPanel = new JPanel();
-        cookiedInfoPanel.setLayout(new FlowLayout(FlowLayout.LEADING, 10, 5));
-        damuInfoPanel.add(cookiedInfoPanel, BorderLayout.NORTH);
+
 
         JLabel cookiedLabel = new JLabel("cookied(用'@!@'分割)");
-        cookiedInfoPanel.add(cookiedLabel);
+        cookiedLabel.setFont(defaultFont);
+        mainPanel.add(cookiedLabel);
 
         cookiedTextArea = new JTextArea();
+        cookiedTextArea.setFont(defaultFont);
         cookiedTextArea.setLineWrap(true);
 
         JScrollPane cookiedScrollPanel = new JScrollPane(cookiedTextArea);
-        cookiedScrollPanel.setPreferredSize(new Dimension(150, 50));
-        cookiedInfoPanel.add(cookiedScrollPanel);
+        cookiedScrollPanel.setPreferredSize(new Dimension((int)(10 * uiSize), uiSize + 50));
+        cookiedScrollPanel.setFont(defaultFont);
+        mainPanel.add(cookiedScrollPanel);
 
         settingBtn = new JButton("设置完成");
-        cookiedInfoPanel.add(settingBtn);
+        settingBtn.setFont(defaultFont);
+        mainPanel.add(settingBtn);
         settingBtn.addActionListener(e -> {
             if (hasSettedSetting) {
                 roomidTextField.setEnabled(true);
@@ -215,7 +222,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
             roomids = new int[roomidStrs.length];
             for (int i = 0; i < roomidStrs.length; i++) {
                 Integer roomid = changeStrToInt(roomidStrs[i]);
-                if(roomid == null){
+                if (roomid == null) {
                     showErrMsg("房间号错误");
                     return;
                 }
@@ -242,21 +249,20 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
         });
 
 
-        JPanel sendInfoPanel = new JPanel();
-        sendInfoPanel.setLayout(new FlowLayout(FlowLayout.LEADING, 10, 5));
-        damuInfoPanel.add(sendInfoPanel, BorderLayout.CENTER);
 
         JLabel sendLabel = new JLabel("发送内容(回车发送)");
-        sendInfoPanel.add(sendLabel);
+        sendLabel.setFont(defaultFont);
+        mainPanel.add(sendLabel);
 
         sendTextArea = new JTextArea();
+        sendTextArea.setFont(defaultFont);
         sendTextArea.setLineWrap(true);
         sendTextArea.setEnabled(false);
-        enterPressesWhenFocused(sendTextArea, e->{
+        enterPressesWhenFocused(sendTextArea, e -> {
             String msg = sendTextArea.getText();
             msg = msg.substring(0, msg.length() - 1);
             sendTextArea.setText("");
-            if(!StringUtils.hasText(msg)){
+            if (!StringUtils.hasText(msg)) {
                 return;
             }
 
@@ -266,26 +272,31 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
 
 
         JScrollPane sendScrollPanel = new JScrollPane(sendTextArea);
-        sendScrollPanel.setPreferredSize(new Dimension(250, 50));
-        sendInfoPanel.add(sendScrollPanel);
+        sendScrollPanel.setPreferredSize(new Dimension((int)(15 * uiSize), uiSize + 100));
+        mainPanel.add(sendScrollPanel);
 
 
         //读取弹幕
         JLabel readDanmuRoodIdLaebl = new JLabel("读取弹幕房间号");
-        sendInfoPanel.add(readDanmuRoodIdLaebl);
+        readDanmuRoodIdLaebl.setFont(defaultFont);
+        mainPanel.add(readDanmuRoodIdLaebl);
         JTextField readDanmuRoodIdField = new JTextField();
-        readDanmuRoodIdField.setPreferredSize(new Dimension(50, 20));
-        sendInfoPanel.add(readDanmuRoodIdField);
+        readDanmuRoodIdField.setFont(defaultFont);
+        readDanmuRoodIdField.setPreferredSize(new Dimension((int)(3.5 * uiSize), uiSize + 5));
+        mainPanel.add(readDanmuRoodIdField);
 
         JLabel targetDanmuRegxLabel = new JLabel("抓取弹幕格式");
-        sendInfoPanel.add(targetDanmuRegxLabel);
+        targetDanmuRegxLabel.setFont(defaultFont);
+        mainPanel.add(targetDanmuRegxLabel);
         JTextField targetDanmuRegxField = new JTextField("【.*】");
-        targetDanmuRegxField.setPreferredSize(new Dimension(50, 20));
-        sendInfoPanel.add(targetDanmuRegxField);
+        targetDanmuRegxField.setFont(defaultFont);
+        targetDanmuRegxField.setPreferredSize(new Dimension((int)(3.5 * uiSize), uiSize + 5));
+        mainPanel.add(targetDanmuRegxField);
 
         JButton readDanmuStartBtn = new JButton("开始读取翻译");
-        readDanmuStartBtn.addActionListener( e -> {
-            if(readingDanmu){
+        readDanmuStartBtn.setFont(defaultFont);
+        readDanmuStartBtn.addActionListener(e -> {
+            if (readingDanmu) {
                 stopReadDanmu();
 
                 readDanmuStartBtn.setText("开始读取翻译");
@@ -298,7 +309,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
             }
 
             readRoomId = changeStrToInt(readDanmuRoodIdField.getText());
-            if(readRoomId == null){
+            if (readRoomId == null) {
                 showErrMsg("读取弹幕房间号错误");
                 return;
             }
@@ -308,11 +319,10 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
                 return;
             }
 
-            if(!hasSettedSetting){
+            if (!hasSettedSetting) {
                 showErrMsg("请先设置好cookied信息");
                 return;
             }
-
 
 
             String targetDanmuRegxStr = targetDanmuRegxField.getText();
@@ -322,12 +332,13 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
             readingDanmu = true;
             startReadRoom();
         });
-        sendInfoPanel.add(readDanmuStartBtn);
+        mainPanel.add(readDanmuStartBtn);
 
         JButton readDanmuPauseBtn = new JButton("暂停");
-        sendInfoPanel.add(readDanmuPauseBtn);
-        readDanmuPauseBtn.addActionListener( e -> {
-            if(isPauseDanmu()){
+        readDanmuPauseBtn.setFont(defaultFont);
+        mainPanel.add(readDanmuPauseBtn);
+        readDanmuPauseBtn.addActionListener(e -> {
+            if (isPauseDanmu()) {
                 setPauseDanmu(false);
                 readDanmuPauseBtn.setText("暂停");
                 return;
@@ -338,25 +349,23 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
         });
 
 
-
         //日记
         logTextArea = new JTextArea();
+        logTextArea.setFont(defaultFont);
         logTextArea.setLineWrap(true);
         JScrollPane logScrollPanel = new JScrollPane(logTextArea);
-        logScrollPanel.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED); 
-        Dimension logScrollPanelSize = logScrollPanel.getPreferredSize();
-        logScrollPanelSize.height = 50;
-        logScrollPanel.setPreferredSize(logScrollPanelSize);
-        damuInfoPanel.add(logScrollPanel, BorderLayout.SOUTH);
+        logScrollPanel.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        logScrollPanel.setPreferredSize(new Dimension((int)(15 * uiSize), uiSize + 100));
+        mainPanel.add(logScrollPanel);
     }
 
     /**
      * 保存当前设置到文件，之后启动时直接读取
      */
-    private void saveSettingInfoToFile(){
+    private void saveSettingInfoToFile() {
         SettingInfo settingInfo = SettingInfo.builder()
-                                            .cookie(cookiedTextArea.getText())
-                                            .roomId(roomidTextField.getText()).build();
+                .cookie(cookiedTextArea.getText())
+                .roomId(roomidTextField.getText()).build();
 
         try {
             saveContentToFile(new ObjectMapper().writeValueAsString(settingInfo), SETTING_FILE_NAME);
@@ -371,6 +380,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
 
     /**
      * 保存内容到文件
+     *
      * @param content
      * @param settingFileName
      * @throws IOException
@@ -384,7 +394,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
      */
     private synchronized void sendMsgWithTry(String sendMsg, boolean isRaw) throws InterruptedException {
         String[] msgs = splitMessage(sendMsg);
-        if(null == msgs){
+        if (null == msgs) {
             return;
         }
 
@@ -393,7 +403,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
                 int roomid = roomids[i];
                 int tryCount = TRY_SEND_DAMNU_COUNT;
                 String responseMsg = null;
-                while(tryCount > 0){
+                while (tryCount > 0) {
                     int nextCookiedIdx = getNextCookiedIdx();
                     if (isRaw) {
                         responseMsg = damuSender.sendDamuRaw(roomid, messge, cookieds[nextCookiedIdx], csrfs[nextCookiedIdx]);
@@ -404,10 +414,10 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
 
                     //msg in 1s
                     //发送失败
-                    if("msg in 1s".equals(responseMsg) || "msg repeat".equals(responseMsg)){
+                    if ("msg in 1s".equals(responseMsg) || "msg repeat".equals(responseMsg)) {
                         addLog(String.format("roomId:%s， 内容:%s, 发送失败，重试%s", roomid, messge, tryCount));
                         --tryCount;
-                        if("msg repeat".equals(responseMsg)){
+                        if ("msg repeat".equals(responseMsg)) {
                             //重复时稍稍改变一下内容
                             messge = messge + tryCount;
                         }
@@ -435,11 +445,12 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
 
     /**
      * B站每次只能发送一定字数，因此太长分开发送
+     *
      * @param sendMsg
      * @return
      */
     private String[] splitMessage(String sendMsg) {
-        if(null == sendMsg || !StringUtils.hasText(sendMsg)){
+        if (null == sendMsg || !StringUtils.hasText(sendMsg)) {
             return null;
         }
 
@@ -461,14 +472,14 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     private int getNextCookiedIdx() throws InterruptedException {
         int result = curCookiedIdx;
         ++curCookiedIdx;
-        if(curCookiedIdx >= cookieds.length){
+        if (curCookiedIdx >= cookieds.length) {
             curCookiedIdx = 0;
         }
 
-        if(result == 0){
+        if (result == 0) {
             //要距离上一次使用的间隔大于1秒
             long diff = System.currentTimeMillis() - lastTimeOfUseCookied;
-            if(diff < GET_COOKIED_INDEX_TIMEOUT){
+            if (diff < GET_COOKIED_INDEX_TIMEOUT) {
                 TimeUnit.MILLISECONDS.sleep(GET_COOKIED_INDEX_TIMEOUT - diff);
             }
             lastTimeOfUseCookied = System.currentTimeMillis();
@@ -477,22 +488,22 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
         return result;
     }
 
-    private synchronized void startReadRoom(){
-        if(danmuQues == null){
+    private synchronized void startReadRoom() {
+        if (danmuQues == null) {
             danmuQues = new LinkedBlockingQueue<String>();
         }
         danmuQues.clear();
 
-        damuReceiver.startListenToRoom(readRoomId, logMsg ->{
-                                dealDamuReceiverLog(logMsg);
-                            }, client ->{
-                                dealStartDamuSucess(client);
-                            }, danmu ->{
-                                dealDanmu(danmu);
-                            },
-                            ctx ->{
-                                dealDamuReceiverDisconnect();
-                            });
+        damuReceiver.startListenToRoom(readRoomId, logMsg -> {
+                    dealDamuReceiverLog(logMsg);
+                }, client -> {
+                    dealStartDamuSucess(client);
+                }, danmu -> {
+                    dealDanmu(danmu);
+                },
+                ctx -> {
+                    dealDamuReceiverDisconnect();
+                });
     }
 
     private synchronized void dealStartDamuSucess(DamuReceiverClient client) {
@@ -501,11 +512,11 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
             while (readingDanmu) {
                 try {
                     String content = danmuQues.poll(1, TimeUnit.SECONDS);
-                    if(!readingDanmu){
+                    if (!readingDanmu) {
                         break;
                     }
 
-                    if(content == null){
+                    if (content == null) {
                         continue;
                     }
 
@@ -518,7 +529,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
                         continue;
                     }
 
-                    if(!isPauseDanmu()){
+                    if (!isPauseDanmu()) {
                         sendMsgWithTry(content, true);
                     }
 
@@ -530,15 +541,15 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
 
     }
 
-    private synchronized void setPauseDanmu(boolean b){
+    private synchronized void setPauseDanmu(boolean b) {
         pauseDanmu = b;
     }
 
-    private synchronized boolean isPauseDanmu(){
+    private synchronized boolean isPauseDanmu() {
         return pauseDanmu;
     }
 
-    private synchronized void stopReadDanmu(){
+    private synchronized void stopReadDanmu() {
         danmuclientReader.stop();
         readingDanmu = false;
         danmuQues.clear();
@@ -547,14 +558,14 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     }
 
     private synchronized void dealDamuReceiverDisconnect() {
-        SwingUtilities.invokeLater(() ->{
+        SwingUtilities.invokeLater(() -> {
             addLog("掉线");
         });
 
-        if(readingDanmu){
+        if (readingDanmu) {
             stopReadDanmu();
             //重新连接
-            SwingUtilities.invokeLater(() ->{
+            SwingUtilities.invokeLater(() -> {
                 addLog("重新连接...");
             });
             startReadRoom();
@@ -562,15 +573,15 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     }
 
     private void dealDamuReceiverLog(String logMsg) {
-        SwingUtilities.invokeLater(() ->{
-            addLog(logMsg);    
+        SwingUtilities.invokeLater(() -> {
+            addLog(logMsg);
         });
     }
 
-    private Integer changeStrToInt(String str){
-        try{
+    private Integer changeStrToInt(String str) {
+        try {
             return Integer.parseInt(str);
-        }catch (Exception e){
+        } catch (Exception e) {
 
         }
         return null;
@@ -578,11 +589,12 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
 
     /**
      * 处理弹幕信息
+     *
      * @param danmu
      */
     private void dealDanmu(DanmuInfo danmu) {
         String[] messges = splitMessage(danmu.getContent());
-        if(null == messges){
+        if (null == messges) {
             return;
         }
 
@@ -591,8 +603,8 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
         }
     }
 
-    private void addLog(String msg){
-        if(logTextArea.getText().length() > 10000){
+    private void addLog(String msg) {
+        if (logTextArea.getText().length() > 10000) {
             logTextArea.setText("");
         }
         logTextArea.append(msg + "\n");
@@ -600,11 +612,11 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     }
 
     private void enterPressesWhenFocused(JTextArea textField, ActionListener actionListener) {
-        textField.registerKeyboardAction(actionListener,KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0, true), JComponent.WHEN_FOCUSED);
+        textField.registerKeyboardAction(actionListener, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0, true), JComponent.WHEN_FOCUSED);
     }
 
     private void showErrMsg(String msg) {
-        JOptionPane.showMessageDialog(null, msg, "错误", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, msg, "错误", JOptionPane.ERROR_MESSAGE);
     }
 
     @Override
