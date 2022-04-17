@@ -604,7 +604,7 @@ public class LivetranslateFrame extends JFrame implements InitializingBean {
     }
 
     private void showErrMsg(String msg) {
-        JOptionPane.showMessageDialog(null, msg, "错误", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, msg, "错误", JOptionPane.ERROR_MESSAGE);
     }
 
     @Override
